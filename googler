@@ -67,7 +67,7 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 # Constants
 
-_VERSION_ = '3.4'
+_VERSION_ = '0'
 
 COLORMAP = {k: '\x1b[%sm' % v for k, v in {
     'a': '30', 'b': '31', 'c': '32', 'd': '33',
@@ -96,7 +96,7 @@ text_browsers = ['elinks', 'links', 'lynx', 'w3m', 'www-browser']
 #
 # before running `make install'.
 
-ENABLE_SELF_UPGRADE_MECHANISM = True
+ENABLE_SELF_UPGRADE_MECHANISM = False
 API_REPO_BASE = 'https://api.github.com/repos/jarun/googler'
 RAW_DOWNLOAD_REPO_BASE = 'https://raw.githubusercontent.com/jarun/googler'
 
@@ -2411,7 +2411,7 @@ def parse_args(args=None, namespace=None):
     addarg('-C', '--nocolor', dest='colorize', action='store_false',
            help='disable color output')
     addarg('--colors', dest='colorstr', type=argparser.is_colorstr,
-           default=colorstr_env if colorstr_env else 'GKlgxy', metavar='COLORS',
+           default=colorstr_env if colorstr_env else 'KEcgxy', metavar='COLORS',
            help='set output colors (see man page for details)')
     addarg('-j', '--first', '--lucky', dest='lucky', action='store_true',
            help='open the first result in web browser and exit')
@@ -2453,71 +2453,20 @@ def main():
 
     try:
         opts = parse_args()
-
-        # Set logging level
-        if opts.debug:
-            logger.setLevel(logging.DEBUG)
-            logger.debug('googler version %s', _VERSION_)
-            logger.debug('Python version %s', python_version())
-
-        # Handle query completer
-        if opts.complete is not None:
-            completer_run(opts.complete)
-
-        # Handle self-upgrade
-        if hasattr(opts, 'upgrade') and opts.upgrade:
-            self_upgrade(include_git=opts.include_git)
-            sys.exit(0)
-
         check_stdout_encoding()
 
-        if opts.keywords:
-            try:
-                # Add cmdline args to readline history
-                readline.add_history(' '.join(opts.keywords))
-            except Exception:
-                pass
-
         # Set colors
-        if opts.colorize:
-            colors = Colors(*[COLORMAP[c] for c in opts.colorstr], reset=COLORMAP['x'])
-        else:
-            colors = None
+        colors = Colors(*[COLORMAP[c] for c in opts.colorstr], reset=COLORMAP['x'])
         Result.colors = colors
-        GooglerCmd.colors = colors
 
-        if opts.url_handler is not None:
-            open_url.url_handler = opts.url_handler
-        else:
-            # Set text browser override to False
-            open_url.override_text_browser = False
-
-            # Handle browser output suppression
-            if opts.show_browser_logs or (os.getenv('BROWSER') in text_browsers):
-                open_url.suppress_browser_output = False
-            else:
-                open_url.suppress_browser_output = True
-
-        if opts.noua:
-            logger.debug('User Agent is disabled')
-            ua = False
+        open_url.suppress_browser_output = True
 
         repl = GooglerCmd(opts)
 
-        if opts.json or opts.lucky or opts.noninteractive:
-            # Non-interactive mode
-            repl.fetch()
-            if opts.lucky:
-                if repl.results:
-                    open_url(repl.results[0].url)
-                else:
-                    print('No results.', file=sys.stderr)
-            else:
-                repl.display_results(prelude='', json_output=opts.json)
-            sys.exit(0)
-        else:
-            # Interactive mode
-            repl.cmdloop()
+        # Non-interactive mode
+        repl.fetch()
+        repl.display_results(prelude='', json_output=opts.json)
+
     except Exception as e:
         # With debugging on, let the exception through for a traceback;
         # otherwise, only print the exception error message.
